@@ -23,6 +23,10 @@ just one self-contained `index.html`.
 
 On desktop you can also use **Space / ↑ / W** to jump.
 
+Top-right buttons let you **🔊 mute** and **⏸ pause** (the game also auto-pauses
+if you switch apps). Hold the jump a touch longer for a higher hop, and there's
+a little input buffer so taps just before landing still register.
+
 > 💡 Best played with the phone held **sideways (landscape)**.
 
 ## ▶️ Run it
