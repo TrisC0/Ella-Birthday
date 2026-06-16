@@ -41,7 +41,7 @@
   function resize(){
     const vw=window.innerWidth,vh=window.innerHeight; H=210;
     const portrait=vh>vw;
-    if(portrait){W=420;rotateEl.style.display="block";} else {W=Math.max(340,Math.min(600,Math.round(H*(vw/vh))));rotateEl.style.display="none";}
+    if(portrait){W=360;rotateEl.style.display="block";} else {W=Math.max(340,Math.min(600,Math.round(H*(vw/vh))));rotateEl.style.display="none";}
     canvas.width=W;canvas.height=H;ctx.imageSmoothingEnabled=false;
     frame=ctx.createImageData(W,H);
     const aspect=W/H;let cw=vw,ch=vh;
@@ -59,6 +59,8 @@
   function drawText(s,x,y,sc,col,sp=1){let cx=x;for(const chR of s){const ch=chR.toUpperCase(),g=FONT[ch]||FONT[" "];for(let r=0;r<7;r++){const row=g[r];for(let cc=0;cc<5;cc++)if(row[cc]==="1")rect(cx+cc*sc,y+r*sc,sc,sc,col);}cx+=5*sc+sp*sc;}return cx;}
   function drawTextC(s,cx,y,sc,col,sp=1){return drawText(s,Math.round(cx-textW(s,sc,sp)/2),y,sc,col,sp);}
   function drawTextS(s,cx,y,sc,col,shadow="#06222b",sp=1){drawTextC(s,cx+sc,y+sc,sc,shadow,sp);drawTextC(s,cx,y,sc,col,sp);}
+  function dimScreen(al){ctx.globalAlpha=al;rect(0,0,W,H,"#05080f");ctx.globalAlpha=1;}
+  function panel(x,y,w,h,al){ctx.globalAlpha=al;rect(x,y,w,h,"#06101c");ctx.globalAlpha=1;}
   function bigWord(word,cx,y,sc,cols){const w=textW(word,sc,1);let x=Math.round(cx-w/2);for(let i=0;i<word.length;i++){const ch=word[i].toUpperCase(),g=FONT[ch]||FONT[" "],col=cols[i%cols.length];for(let r=0;r<7;r++)for(let c=0;c<5;c++)if(g[r][c]==="1"){rect(x+c*sc+sc,y+r*sc+sc,sc,sc,"#04161d");rect(x+c*sc,y+r*sc,sc,sc,col);if(r===0||g[r-1][c]==="0")rect(x+c*sc,y+r*sc,sc,2,"#ffffff");}x+=5*sc+sc;}}
 
   /* ---------- sprites ---------- */
@@ -127,6 +129,7 @@
   const horizonFrac=0.42, FOCAL=170, CAMZ=24;
   const skyR=42,skyG=125,skyB=132; // horizon haze target
   function renderGround(camX,camY,camH){
+    if(!frame||frame.width!==W||frame.height!==H)frame=ctx.createImageData(W,H);
     const data=frame.data, horizon=(H*horizonFrac)|0;
     const cosH=Math.cos(camH), sinH=Math.sin(camH);
     // sky
@@ -253,6 +256,10 @@
     if(window.__demo&&!window.__demoInit){window.__demoInit=true;startRace();game.state="race";game.cdt=0;for(let i=0;i<(window.__demoSteps||220);i++)update(1/60);}
     update(dt);
 
+    // hard clear every frame (prevents stale-frame artifacts on some mobile GPUs)
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle="#0b1b30";ctx.fillRect(0,0,W,H);
+
     const [cx,cy,ch]=camFromKart();
     renderGround(cx,cy,ch);
     // screen shake
@@ -263,12 +270,13 @@
 
     if(game.state==="title"){
       ctx.setTransform(1,0,0,1,0,0);
+      panel(0,0,W,H,0.55); // readable backdrop over the busy 3D scene
       const tsc=Math.max(2,Math.min(5,Math.floor((W-20)/53)));
-      bigWord("ELLA KART",W/2,Math.round(H*0.13),tsc,["#3de0c0","#5ad1ff","#9bff5a","#b98cff","#3de0c0","#ffd35a","#9bff5a","#5ad1ff","#ffd35a"]);
-      drawTextS("BIRTHDAY GRAND PRIX",W/2,H*0.40,1,"#ffd35a");
-      if(Math.sin(game.t*4)>-.3)drawTextS("TAP TO RACE!",W/2,H*0.50,2,"#9bff5a");
-      drawTextS("HOLD LEFT / RIGHT OF SCREEN TO STEER",W/2,H*0.64,1,"#eaf6ff");
-      drawTextS("3 LAPS   *   AUTO-ACCELERATE",W/2,H*0.71,1,"#eaf6ff");
+      bigWord("ELLA KART",W/2,Math.round(H*0.14),tsc,["#3de0c0","#5ad1ff","#9bff5a","#b98cff","#3de0c0","#ffd35a","#9bff5a","#5ad1ff","#ffd35a"]);
+      drawTextS("BIRTHDAY GRAND PRIX",W/2,H*0.42,1,"#ffd35a");
+      if(Math.sin(game.t*4)>-.3)drawTextS("TAP TO RACE!",W/2,H*0.52,2,"#9bff5a");
+      drawTextS("HOLD LEFT OR RIGHT SIDE TO STEER",W/2,H*0.66,1,"#eaf6ff");
+      drawTextS("3 LAPS   *   AUTO-ACCELERATE",W/2,H*0.73,1,"#eaf6ff");
     } else {
       drawHUD();drawSteerHints();drawFW();
     }
@@ -281,7 +289,7 @@
       game.finishT+=dt;
       if(game.finishT<7&&Math.random()<0.3)addFirework(20+Math.random()*(W-40),20+Math.random()*70);
       ctx.setTransform(1,0,0,1,0,0);
-      rect(0,0,W,H,"#050b14ee");
+      dimScreen(0.88);
       drawFW();
       // solid high-contrast banner for the birthday message
       const bw=Math.min(W-12,300),bx=Math.round(W/2-bw/2),by=Math.round(H*0.08),bh=66;
