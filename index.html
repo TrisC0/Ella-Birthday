@@ -24,17 +24,68 @@
   #ui button { width:36px; height:36px; padding:0; font-size:18px; line-height:36px; color:#cfe8ff; background:rgba(8,20,30,.55); border:1px solid rgba(61,224,192,.5); border-radius:9px; cursor:pointer; }
   #ui button:active { transform:translateY(1px); }
   #rotate { position:fixed; left:0; right:0; z-index:4; display:none; bottom:calc(env(safe-area-inset-bottom,0px) + 8px); color:#bdf3ff; pointer-events:none; text-align:center; font-size:13px; line-height:1.5; padding:6px; text-shadow:0 1px 2px #000; }
+
+  /* HTML message overlays (always crisp & readable, independent of the canvas) */
+  .screen{ position:fixed; inset:0; z-index:3; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    font-family:inherit; gap:0.5em;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 12px calc(env(safe-area-inset-bottom,0px) + 10px); }
+  #titleScreen{ background:rgba(6,14,24,0.5); }
+  #finishScreen{ background:rgba(5,9,16,0.55); display:none; }
+  .logo{ font-weight:800; letter-spacing:2px; line-height:1; font-size:clamp(34px,13vmin,104px);
+    background:linear-gradient(90deg,#3de0c0,#5ad1ff,#9bff5a,#ffd35a);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    -webkit-text-stroke:2px #04161d; filter:drop-shadow(3px 3px 0 #04161d); }
+  .sub{ font-size:clamp(13px,3.6vmin,26px); color:#ffd35a; letter-spacing:2px; text-shadow:2px 2px 0 #04161d; }
+  .cta{ font-size:clamp(17px,5vmin,34px); color:#9bff5a; letter-spacing:1px; text-shadow:2px 2px 0 #04161d; animation:blink 1s steps(2,jump-none) infinite; }
+  .hint{ font-size:clamp(11px,3vmin,19px); color:#dff1ff; line-height:1.7; text-shadow:1px 1px 0 #04161d; }
+  .banner{ background:#0a1830; border:3px solid #3de0c0; border-radius:14px; padding:0.45em 0.8em;
+    box-shadow:0 8px 28px rgba(0,0,0,.55); }
+  .bday1{ font-size:clamp(28px,10vmin,76px); font-weight:800; color:#ffd35a; letter-spacing:2px; line-height:1.05; text-shadow:3px 3px 0 #04161d; }
+  .bday2{ font-size:clamp(28px,10vmin,76px); font-weight:800; color:#3de0c0; letter-spacing:2px; line-height:1.05; text-shadow:3px 3px 0 #04161d; }
+  .emoji{ font-size:clamp(20px,6vmin,40px); }
+  .won{ font-size:clamp(13px,3.6vmin,24px); color:#9bff5a; text-shadow:1px 1px 0 #04161d; }
+  .stats{ font-size:clamp(13px,3.6vmin,24px); color:#eaf6ff; line-height:1.7; text-shadow:1px 1px 0 #04161d; }
+  .stats b{ color:#ffd35a; font-weight:800; }
+  @keyframes blink{ 50%{ opacity:.2 } }
 </style>
 </head>
 <body>
   <canvas id="game"></canvas>
   <div id="ui"><button id="muteBtn" aria-label="Mute">🔊</button></div>
   <div id="rotate">📱 Turn your phone sideways (landscape) for the best race! 🏁</div>
+
+  <div id="titleScreen" class="screen">
+    <div class="logo">ELLA&nbsp;KART</div>
+    <div class="sub">★ BIRTHDAY GRAND PRIX ★</div>
+    <div class="cta">TAP TO RACE!</div>
+    <div class="hint">Hold the <b>left</b> or <b>right</b> side of the screen to steer<br>3 laps &nbsp;•&nbsp; auto-accelerate</div>
+  </div>
+
+  <div id="finishScreen" class="screen">
+    <div class="emoji">🎉🎂🏁🎉</div>
+    <div class="banner">
+      <div class="bday1">HAPPY 15TH</div>
+      <div class="bday2">BIRTHDAY ELLA!</div>
+    </div>
+    <div class="won">🏆 LEVEL COMPLETE — YOU WON! 🐹</div>
+    <div class="stats">Your time: <b id="fTime">0:00.00</b><br>Best: <b id="fBest">0:00.00</b></div>
+    <div class="cta">TAP TO RACE AGAIN</div>
+  </div>
 <script>
 (() => {
   "use strict";
   const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
   const muteBtn=document.getElementById("muteBtn"), rotateEl=document.getElementById("rotate");
+  const titleScreen=document.getElementById("titleScreen"), finishScreen=document.getElementById("finishScreen");
+  const fTimeEl=document.getElementById("fTime"), fBestEl=document.getElementById("fBest");
+  let shownScreen=null;
+  function showScreen(s){
+    if(shownScreen===s)return;shownScreen=s;
+    titleScreen.style.display = s==="title"?"flex":"none";
+    finishScreen.style.display = s==="finish"?"flex":"none";
+    if(s==="finish"){fTimeEl.textContent=fmtTime(game.raceTime);fBestEl.textContent=fmtTime(best);}
+  }
 
   /* ---------- sizing ---------- */
   let W=420,H=210,frame=null;
@@ -268,17 +319,11 @@
 
     drawKart();
 
-    if(game.state==="title"){
-      ctx.setTransform(1,0,0,1,0,0);
-      panel(0,0,W,H,0.55); // readable backdrop over the busy 3D scene
-      const tsc=Math.max(2,Math.min(5,Math.floor((W-20)/53)));
-      bigWord("ELLA KART",W/2,Math.round(H*0.14),tsc,["#3de0c0","#5ad1ff","#9bff5a","#b98cff","#3de0c0","#ffd35a","#9bff5a","#5ad1ff","#ffd35a"]);
-      drawTextS("BIRTHDAY GRAND PRIX",W/2,H*0.42,1,"#ffd35a");
-      if(Math.sin(game.t*4)>-.3)drawTextS("TAP TO RACE!",W/2,H*0.52,2,"#9bff5a");
-      drawTextS("HOLD LEFT OR RIGHT SIDE TO STEER",W/2,H*0.66,1,"#eaf6ff");
-      drawTextS("3 LAPS   *   AUTO-ACCELERATE",W/2,H*0.73,1,"#eaf6ff");
-    } else {
-      drawHUD();drawSteerHints();drawFW();
+    // start & finish MESSAGES are real HTML overlays (always readable); canvas only draws the scene
+    if(game.state!=="title"){
+      drawHUD();
+      if(game.state==="race"||game.state==="countdown")drawSteerHints();
+      drawFW();
     }
     if(game.state==="countdown"){
       const n=Math.ceil(game.cdt-0.2);
@@ -289,22 +334,10 @@
       game.finishT+=dt;
       if(game.finishT<7&&Math.random()<0.3)addFirework(20+Math.random()*(W-40),20+Math.random()*70);
       ctx.setTransform(1,0,0,1,0,0);
-      dimScreen(0.88);
+      dimScreen(0.5);
       drawFW();
-      // solid high-contrast banner for the birthday message
-      const bw=Math.min(W-12,300),bx=Math.round(W/2-bw/2),by=Math.round(H*0.08),bh=66;
-      rect(bx,by,bw,bh,"#0a1830");
-      rect(bx,by,bw,2,"#3de0c0");rect(bx,by+bh-2,bw,2,"#3de0c0");
-      rect(bx,by,2,bh,"#3de0c0");rect(bx+bw-2,by,2,bh,"#3de0c0");
-      bigWord("HAPPY 15TH",W/2,by+8,3,["#ffd35a"]);
-      bigWord("BIRTHDAY ELLA!",W/2,by+34,3,["#3de0c0"]);
-      const hy=by+bh+8;
-      sprite(S_hamster.rows,S_hamster.pal,W/2-16,hy,2);sprite(S_hat.rows,S_hat.pal,W/2-6,hy-14,2);
-      drawTextS("LEVEL COMPLETE  -  YOU WON!",W/2,hy+40,1,"#9bff5a");
-      drawTextS("YOUR TIME  "+fmtTime(game.raceTime),W/2,hy+52,1,"#eaf6ff");
-      drawTextS("BEST  "+fmtTime(best),W/2,hy+62,1,"#ffd35a");
-      if(game.finishT>1.5&&Math.sin(game.t*4)>-.3)drawTextS("TAP TO RACE AGAIN",W/2,H-18,2,"#ffffff");
     }
+    showScreen(game.state==="title"?"title":game.state==="finish"?"finish":"none");
     ctx.setTransform(1,0,0,1,0,0);
     requestAnimationFrame(loop);
   }
