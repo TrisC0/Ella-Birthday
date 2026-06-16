@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Happy 15th Birthday, Ella! 🎉</title>
+<meta name="description" content="A special pixel-art birthday card for Ella's 15th — mountain biking, her grey hamster, Billie Eilish vibes and lots of confetti." />
+<style>
+  :root { --bg1:#070d1a; --bg2:#0d1b33; --teal:#3de0c0; --lime:#9bff5a; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: radial-gradient(120% 120% at 50% 0%, var(--bg2) 0%, var(--bg1) 70%);
+    color: #eaf6ff;
+    font-family: ui-monospace, "Courier New", monospace;
+    overflow-x: hidden;
+  }
+  .wrap {
+    min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 18px 12px 36px;
+    gap: 14px;
+  }
+  .frame {
+    position: relative;
+    padding: 10px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #14304f, #0b1b30);
+    box-shadow: 0 0 0 3px #0a1424, 0 18px 50px rgba(0,0,0,.6),
+                inset 0 0 0 2px rgba(61,224,192,.25);
+    width: min(96vw, 880px);
+  }
+  canvas#scene {
+    display: block;
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    border-radius: 8px;
+    background: #0b1b30;
+  }
+  .controls {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    align-items: center; justify-content: center;
+  }
+  button {
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: .5px;
+    color: #051018;
+    background: linear-gradient(180deg, var(--teal), #21b89b);
+    border: none;
+    padding: 10px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #14705f, 0 8px 16px rgba(0,0,0,.4);
+    transition: transform .06s ease, box-shadow .06s ease;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #14705f, 0 4px 10px rgba(0,0,0,.4); }
+  button.alt { background: linear-gradient(180deg, var(--lime), #4fbf2f); box-shadow: 0 4px 0 #2f7a1c, 0 8px 16px rgba(0,0,0,.4); }
+  button.alt:active { box-shadow: 0 1px 0 #2f7a1c, 0 4px 10px rgba(0,0,0,.4); }
+  .tagline {
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #9fc7dd;
+    max-width: 640px;
+  }
+  .tagline b { color: var(--teal); }
+  .heart { color: #ff5a8a; }
+  a { color: var(--teal); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="frame">
+      <canvas id="scene" width="320" height="200"></canvas>
+    </div>
+    <div class="controls">
+      <button id="confettiBtn" class="alt">🎉 More Confetti</button>
+      <button id="musicBtn">🎵 Play Tune</button>
+    </div>
+    <p class="tagline">
+      Made with <span class="heart">♥</span> for <b>Ella's 15th Birthday</b> —
+      featuring an <b>enduro</b> sender, her <b>grey hamster</b>, some
+      <b>Billie</b> notes, and a whole lot of confetti.
+    </p>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.imageSmoothingEnabled = false;
+
+  /* ---------- tiny pixel drawing helpers (everything is 1-unit pixels) ---------- */
+  function px(x, y, c) {
+    ctx.fillStyle = c;
+    ctx.fillRect(x | 0, y | 0, 1, 1);
+  }
+  function rect(x, y, w, h, c) {
+    ctx.fillStyle = c;
+    ctx.fillRect(x | 0, y | 0, w | 0, h | 0);
+  }
+  function line(x0, y0, x1, y1, c) {
+    x0|=0; y0|=0; x1|=0; y1|=0;
+    let dx = Math.abs(x1-x0), dy = -Math.abs(y1-y0);
+    let sx = x0<x1?1:-1, sy = y0<y1?1:-1, err = dx+dy;
+    while (true) {
+      px(x0, y0, c);
+      if (x0===x1 && y0===y1) break;
+      let e2 = 2*err;
+      if (e2 >= dy) { err += dy; x0 += sx; }
+      if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+  }
+  function thickLine(x0,y0,x1,y1,c){ line(x0,y0,x1,y1,c); line(x0,y0+1,x1,y1+1,c); }
+  function circleFill(cx, cy, r, c) {
+    for (let y=-r; y<=r; y++) for (let x=-r; x<=r; x++)
+      if (x*x+y*y <= r*r+1) px(cx+x, cy+y, c);
+  }
+  function ring(cx, cy, r, c) {
+    let x=r, y=0, err=1-r;
+    while (x>=y) {
+      [[x,y],[y,x],[-x,y],[-y,x],[-x,-y],[-y,-x],[x,-y],[y,-x]].forEach(p=>px(cx+p[0],cy+p[1],c));
+      y++;
+      if (err<0) err += 2*y+1; else { x--; err += 2*(y-x)+1; }
+    }
+  }
+  // draw a sprite from rows of chars using palette map
+  function sprite(rows, pal, ox, oy, sc=1) {
+    for (let r=0; r<rows.length; r++)
+      for (let cIdx=0; cIdx<rows[r].length; cIdx++) {
+        const ch = rows[r][cIdx];
+        const col = pal[ch];
+        if (col) rect(ox + cIdx*sc, oy + r*sc, sc, sc, col);
+      }
+  }
+
+  /* ---------- 5x7 pixel font ---------- */
+  const FONT = {
+    A:["01110","10001","10001","11111","10001","10001","10001"],
+    B:["11110","10001","10001","11110","10001","10001","11110"],
+    C:["01111","10000","10000","10000","10000","10000","01111"],
+    D:["11110","10001","10001","10001","10001","10001","11110"],
+    E:["11111","10000","10000","11110","10000","10000","11111"],
+    F:["11111","10000","10000","11110","10000","10000","10000"],
+    G:["01111","10000","10000","10111","10001","10001","01111"],
+    H:["10001","10001","10001","11111","10001","10001","10001"],
+    I:["11111","00100","00100","00100","00100","00100","11111"],
+    J:["00111","00010","00010","00010","10010","10010","01100"],
+    K:["10001","10010","10100","11000","10100","10010","10001"],
+    L:["10000","10000","10000","10000","10000","10000","11111"],
+    M:["10001","11011","10101","10101","10001","10001","10001"],
+    N:["10001","11001","10101","10101","10011","10001","10001"],
+    O:["01110","10001","10001","10001","10001","10001","01110"],
+    P:["11110","10001","10001","11110","10000","10000","10000"],
+    Q:["01110","10001","10001","10001","10101","10010","01101"],
+    R:["11110","10001","10001","11110","10100","10010","10001"],
+    S:["01111","10000","10000","01110","00001","00001","11110"],
+    T:["11111","00100","00100","00100","00100","00100","00100"],
+    U:["10001","10001","10001","10001","10001","10001","01110"],
+    V:["10001","10001","10001","10001","10001","01010","00100"],
+    W:["10001","10001","10001","10101","10101","11011","10001"],
+    X:["10001","10001","01010","00100","01010","10001","10001"],
+    Y:["10001","10001","01010","00100","00100","00100","00100"],
+    Z:["11111","00001","00010","00100","01000","10000","11111"],
+    "0":["01110","10001","10011","10101","11001","10001","01110"],
+    "1":["00100","01100","00100","00100","00100","00100","01110"],
+    "2":["01110","10001","00001","00110","01000","10000","11111"],
+    "3":["11110","00001","00001","01110","00001","00001","11110"],
+    "4":["00010","00110","01010","10010","11111","00010","00010"],
+    "5":["11111","10000","11110","00001","00001","10001","01110"],
+    "6":["01110","10000","10000","11110","10001","10001","01110"],
+    "7":["11111","00001","00010","00100","01000","01000","01000"],
+    "8":["01110","10001","10001","01110","10001","10001","01110"],
+    "9":["01110","10001","10001","01111","00001","00001","01110"],
+    " ":["00000","00000","00000","00000","00000","00000","00000"],
+    "!":["00100","00100","00100","00100","00100","00000","00100"],
+    "'":["00100","00100","01000","00000","00000","00000","00000"],
+    ".":["00000","00000","00000","00000","00000","00000","00100"],
+    "-":["00000","00000","00000","11111","00000","00000","00000"],
+    "*":["00000","10101","01110","11111","01110","10101","00000"],
+    HEART:["01010","11111","11111","11111","01110","00100","00000"]
+  };
+  function textWidth(str, sc, sp=1){ return str.length*(5*sc) + (str.length-1)*sp*sc; }
+  function drawText(str, x, y, sc, col, opt={}) {
+    const sp = opt.spacing ?? 1;
+    let cx = x;
+    for (const chRaw of str) {
+      const ch = chRaw.toUpperCase();
+      const g = FONT[ch] || FONT[" "];
+      // optional per-letter colour
+      const c = (typeof col === "function") ? col(chRaw, cx) : col;
+      for (let r=0; r<7; r++)
+        for (let cc=0; cc<5; cc++)
+          if (g[r][cc] === "1") rect(cx + cc*sc, y + r*sc, sc, sc, c);
+      cx += 5*sc + sp*sc;
+    }
+    return cx;
+  }
+  function drawTextCentered(str, cy, y, sc, col, opt={}) {
+    const w = textWidth(str, sc, opt.spacing ?? 1);
+    return drawText(str, Math.round(cy - w/2), y, sc, col, opt);
+  }
+
+  /* ---------- palettes for sprites ---------- */
+  // Grey hamster, party hat
+  const hamster = {
+    rows:[
+      "....DDDD..DDDD....",
+      "...DLLDD..DDLLD...",
+      "..DLPGGDDDDGGPLD..",
+      "..DGGGGGGGGGGGGD..",
+      ".DGGGGGGGGGGGGGGD.",
+      ".DGGEGGGGGGGGEGGD.",
+      ".DGGEGGGNNGGGEGGD.",
+      ".DGWWGGGNNGGGWWGD.",
+      ".DGWWGGGGGGGGWWGD.",
+      ".DGGWWWWWWWWWWGGD.",
+      "..DGWWWWWWWWWWGD..",
+      "..DGGWWWWWWWWGGD..",
+      "...DGGWWWWWWGGD...",
+      "...DPGD....DGPD...",
+      "....DD......DD....",
+      ".................."
+    ],
+    pal:{ D:"#5d636d", G:"#9aa0a8", L:"#c4c9cf", W:"#e9eef3",
+          P:"#f4a6b8", E:"#1b1f24", N:"#f08aa6" }
+  };
+  const hat = {
+    rows:[
+      "....B....",
+      "...BWB...",
+      "...BTB...",
+      "..BWTWB..",
+      "..BTWTB..",
+      ".BWTWTWB.",
+      ".BTWTWTB.",
+      "BWTWTWTWB",
+      "BBBBBBBBB"
+    ],
+    pal:{ B:"#0d5f76", T:"#3de0c0", W:"#9bff5a" }
+  };
+  // Birthday cake
+  const cake = {
+    rows:[
+      "....f....f....",   // candle flames handled separately
+      "..FFFFFFFFFF..",
+      ".FCCCCCCCCCCF.",
+      ".FCdCdCdCdCCF.",
+      "FFFFFFFFFFFFFF",
+      "FBBBBBBBBBBBBF",
+      "FBdBBdBBdBBdBF",
+      "FBBBBBBBBBBBBF",
+      "FBBdBBdBBdBBBF",
+      "FFFFFFFFFFFFFF"
+    ],
+    pal:{ F:"#aee9ff", C:"#5ec8e8", d:"#ffd35a", B:"#2f93b8" }
+  };
+  // music note
+  const note = {
+    rows:[
+      "...11",
+      "...11",
+      "...11",
+      "...11",
+      "...11",
+      "...11",
+      ".1111",
+      "11111",
+      ".111."
+    ],
+    pal:{ "1":"#b98cff" }
+  };
+
+  /* ---------- scene state ---------- */
+  const stars = Array.from({length:60}, () => ({
+    x: Math.random()*W, y: Math.random()*95,
+    p: Math.random()*Math.PI*2, s: 0.4+Math.random()*0.9
+  }));
+  const confetti = [];
+  function addConfetti(n, burst=false) {
+    const cols = ["#3de0c0","#9bff5a","#5ad1ff","#b98cff","#ffd35a","#ff5a8a","#ffffff"];
+    for (let i=0;i<n;i++) confetti.push({
+      x: burst ? W/2 + (Math.random()-0.5)*40 : Math.random()*W,
+      y: burst ? 70 : -Math.random()*60,
+      vx: (Math.random()-0.5)*(burst?2.4:0.6),
+      vy: (burst?-2-Math.random()*2 : 0.5+Math.random()*0.9),
+      g: 0.05,
+      c: cols[(Math.random()*cols.length)|0],
+      r: Math.random()*Math.PI, vr:(Math.random()-0.5)*0.3,
+      life: 0
+    });
+  }
+  addConfetti(70);
+  // spread the opening confetti across the whole scene so it's lively on load
+  confetti.forEach(p => { p.y = Math.random()*H; p.life = (Math.random()*80)|0; });
+  const dust = [];
+
+  /* ---------- background layers ---------- */
+  function drawSky(t) {
+    // vertical gradient bands (boy colours: deep blue -> teal)
+    const bands = [
+      ["#0a1430", 0, 28],
+      ["#0e2142", 28, 50],
+      ["#123a5e", 50, 70],
+      ["#185f72", 70, 86],
+      ["#1f8a86", 86, 100]
+    ];
+    bands.forEach(([c,y0,y1]) => rect(0, y0, W, y1-y0, c));
+    // stars
+    stars.forEach(s => {
+      const tw = 0.5 + 0.5*Math.sin(t*2*s.s + s.p);
+      if (tw > 0.45) {
+        const c = tw>0.85 ? "#ffffff" : "#bcdcff";
+        px(s.x, s.y, c);
+        if (tw>0.9) { px(s.x-1,s.y,c); px(s.x+1,s.y,c); px(s.x,s.y-1,c); px(s.x,s.y+1,c); }
+      }
+    });
+    // moon
+    circleFill(40, 30, 9, "#eaf6ff");
+    circleFill(36, 27, 9, "#185f72"); // crescent cut
+    px(46,26,"#cfe8ff"); px(44,34,"#cfe8ff"); px(48,31,"#cfe8ff");
+  }
+
+  function mountainRange(baseY, peaks, col, snow) {
+    // peaks: array of [x, height]
+    ctx.fillStyle = col;
+    for (let i=0;i<peaks.length-1;i++) {
+      const [x0,h0] = peaks[i], [x1,h1] = peaks[i+1];
+      // fill triangle slabs column by column
+      for (let x=x0; x<=x1; x++) {
+        const tt = (x-x0)/(x1-x0 || 1);
+        const top = Math.round(baseY - (h0 + (h1-h0)*tt));
+        rect(x, top, 1, baseY-top, col);
+        if (snow && (baseY-top) > 14 && (top < baseY - (h0+ (h1-h0)*tt) + 6)) {
+          // snowcap near peak
+        }
+      }
+    }
+  }
+  function drawMountains() {
+    // valley haze fills the space between sky and ground so nothing shows through
+    rect(0, 100, W, 50, "#16384a");
+    rect(0, 100, W, 10, "#1a4a5a");
+    // back range (blue)
+    mountainRange(118, [[-5,18],[30,46],[70,30],[110,55],[150,34],[200,52],[250,30],[300,48],[330,26]], "#274a72");
+    // snow caps for back
+    snowCaps([[110,55],[200,52],[300,48]], 118, "#cfe2f2");
+    // mid range (green-teal)
+    mountainRange(124, [[-5,12],[50,40],[95,24],[140,46],[185,28],[235,44],[285,26],[330,40]], "#1f6f5e");
+    snowCaps([[50,40],[140,46],[235,44]], 124, "#dff4ee");
+    // front hills (dark green)
+    mountainRange(132, [[-5,16],[60,30],[120,20],[180,34],[240,22],[300,32],[330,20]], "#163f33");
+  }
+  function snowCaps(peaks, baseY, col) {
+    peaks.forEach(([x,h]) => {
+      const top = baseY - h;
+      for (let dy=0; dy<6; dy++) for (let dx=-(dy+1); dx<=dy+1; dx++) {
+        if (Math.random()>0.15) px(x+dx, top+dy, col);
+      }
+    });
+  }
+
+  function drawTrees() {
+    const treeline = [10,40,72,150,210,270,300];
+    treeline.forEach((x,i) => {
+      const bx = x + (i%2?6:0);
+      pine(bx, 132, 7 + (i%3)*2);
+    });
+  }
+  function pine(x, baseY, h) {
+    rect(x-1, baseY, 2, 4, "#3a2a18");
+    let w = h*0.7;
+    for (let i=0;i<3;i++) {
+      const ty = baseY - h + i*(h/3);
+      const ww = w*(1 - i*0.22);
+      ctx.fillStyle = "#10362a";
+      for (let dy=0; dy<h/3+1; dy++) {
+        const half = Math.round(ww*(1-dy/(h/3+1)));
+        rect(x-half, ty+dy, half*2+1, 1, "#13422f");
+      }
+    }
+    px(x, baseY-h-1, "#2fae7a"); // tip highlight
+  }
+
+  /* ---------- the enduro trail + jump ---------- */
+  function drawTrail() {
+    // berm / dirt landing on the right, takeoff ramp on the left
+    // ground band
+    rect(0, 150, W, 50, "#23303a");
+    rect(0, 150, W, 3, "#2c3f4c");
+    // dirt trail sweeping across
+    ctx.fillStyle = "#7a5230";
+    for (let x=0; x<W; x++) {
+      const y = 168 + Math.sin(x*0.025)*8 + (x>250? (x-250)*0.15:0);
+      rect(x, y, 1, 200-y, "#6e4a2b");
+      rect(x, y, 1, 3, "#8a6038");
+      if ((x+((Date.now()/60)|0))%14===0) px(x, y+5, "#5a3b21"); // texture
+    }
+    // takeoff ramp (left jump)
+    ctx.fillStyle = "#6e4a2b";
+    for (let i=0;i<26;i++){
+      const rx = 70 + i;
+      const top = 168 - i*0.8;
+      rect(rx, top, 1, 200-top, "#74502e");
+      rect(rx, top, 1, 2, "#8a6038");
+    }
+    // landing berm (right)
+    for (let i=0;i<40;i++){
+      const rx = 235 + i;
+      const top = 172 - Math.sqrt(i)*2.2;
+      rect(rx, top, 1, 200-top, "#74502e");
+      rect(rx, top, 1, 2, "#8a6038");
+    }
+  }
+
+  /* ---------- enduro mountain biker (geometric pixel art) ---------- */
+  function drawBiker(cx, cy) {
+    const dark = "#161e26", frame = "#3de0c0", jersey = "#9bff5a",
+          skin = "#f0c39b", helmet = "#1f8fb0", tire = "#0e141a", rim = "#46525e";
+    const R = 8;
+    const rear = [cx-15, cy], front = [cx+15, cy];
+    // wheels
+    [rear, front].forEach(([wx,wy]) => {
+      circleFill(wx, wy, R, tire);
+      ring(wx, wy, R, "#222d36");
+      ring(wx, wy, R-3, rim);
+      // spokes
+      for (let a=0;a<6;a++){ const ang=a*Math.PI/3; line(wx,wy, wx+Math.cos(ang)*(R-3), wy+Math.sin(ang)*(R-3), "#39454f"); }
+      circleFill(wx, wy, 2, "#5a6772");
+      // knobby tread
+      for (let a=0;a<12;a++){ const ang=a*Math.PI/6; px(wx+Math.cos(ang)*R, wy+Math.sin(ang)*R, "#05080b"); }
+    });
+    const bb = [cx, cy-2];                 // bottom bracket
+    const seat = [cx-9, cy-15];            // saddle
+    const bar  = [cx+12, cy-15];           // handlebar
+    const headTop = [cx+11, cy-13];
+    // frame
+    thickLine(rear[0],rear[1], bb[0],bb[1], frame);
+    thickLine(rear[0],rear[1], seat[0],seat[1], frame);
+    thickLine(seat[0],seat[1], bb[0],bb[1], frame);
+    thickLine(bb[0],bb[1], headTop[0],headTop[1], frame);
+    thickLine(seat[0],seat[1], bar[0],bar[1], frame);
+    thickLine(front[0],front[1], headTop[0],headTop[1], "#2a3942"); // fork
+    // saddle + bar nubs
+    rect(seat[0]-3, seat[1]-1, 6, 2, dark);
+    rect(bar[0]-1, bar[1]-1, 4, 2, dark);
+    // pedals
+    circleFill(bb[0], bb[1], 2, "#2a3942");
+
+    // rider — leaning forward, attacking position
+    const hip = [cx-2, cy-17];
+    const shoulder = [cx+6, cy-26];
+    const head = [cx+10, cy-30];
+    // legs (bent, on pedals)
+    thickLine(hip[0],hip[1], cx+2,cy-9, dark);   // thigh
+    thickLine(cx+2,cy-9, bb[0],bb[1], dark);      // shin to pedal
+    thickLine(hip[0],hip[1], cx-1,cy-9, "#0f161c");
+    thickLine(cx-1,cy-9, bb[0]-1,bb[1], "#0f161c");
+    // torso
+    for (let i=0;i<2;i++) thickLine(hip[0]+i,hip[1], shoulder[0]+i,shoulder[1], jersey);
+    line(hip[0]-1,hip[1], shoulder[0]-1,shoulder[1], "#5fbf2f");
+    // arms to bar
+    thickLine(shoulder[0],shoulder[1], bar[0],bar[1]-1, jersey);
+    // hands
+    rect(bar[0]-1, bar[1]-2, 3, 3, dark);
+    // head + helmet
+    circleFill(head[0], head[1], 3, skin);
+    // helmet shell
+    ctx.fillStyle = helmet;
+    for (let a=-Math.PI*0.95; a<=0.15; a+=0.2) px(head[0]+Math.cos(a)*4, head[1]+Math.sin(a)*4, helmet);
+    rect(head[0]-3, head[1]-4, 8, 2, helmet);
+    rect(head[0]+3, head[1]-1, 3, 1, helmet); // visor/peak
+    px(head[0]+2, head[1], "#241a14"); // eye
+  }
+
+  /* ---------- pennant bunting banner ---------- */
+  function drawBunting(t) {
+    const cols = ["#3de0c0","#9bff5a","#5ad1ff","#b98cff","#ffd35a"];
+    const n = 16, step = W/n;
+    // string
+    for (let x=0;x<W;x++){ const y = 6 + Math.sin(x*0.05)*3; px(x, y, "#cfe8ff"); }
+    for (let i=0;i<n;i++){
+      const x = i*step + step/2;
+      const y = 6 + Math.sin(x*0.05)*3 + 2 + Math.sin(t*2 + i)*0.6;
+      const c = cols[i%cols.length];
+      for (let r=0;r<8;r++){ const half = 4 - Math.floor(r/2); rect(x-half, y+r, half*2+1, 1, c); }
+    }
+  }
+
+  /* ---------- billie-style floating notes ---------- */
+  function drawNotes(t) {
+    const spots = [[268,70],[286,55],[252,48],[300,78]];
+    spots.forEach((s,i) => {
+      const fy = s[1] + Math.sin(t*1.5 + i)*4;
+      const fx = s[0] + Math.cos(t*0.8 + i)*2;
+      sprite(note.rows, note.pal, fx, fy, 1);
+    });
+  }
+
+  /* ---------- cake with flickering candles ---------- */
+  function drawCake(t, x, y) {
+    sprite(cake.rows, cake.pal, x, y+2, 2);
+    // two candles "1" "5"
+    const candleX = [x+8, x+18];
+    candleX.forEach((cxp,i) => {
+      rect(cxp, y-6, 2, 8, i? "#ff8aa0":"#7cd0ff"); // candle
+      // flame flicker
+      const f = Math.sin(t*9 + i*2);
+      const fy = y-8 + (f>0?0:0);
+      px(cxp, fy-1, "#fff3b0");
+      px(cxp, fy, "#ffd35a");
+      rect(cxp-1, fy+1, 3, 1, "#ff8a3d");
+      if (Math.random()>0.6) px(cxp + (f>0?1:0), fy-2, "#fff3b0");
+    });
+  }
+
+  /* ---------- confetti update/draw ---------- */
+  function updateConfetti() {
+    for (let i=confetti.length-1;i>=0;i--){
+      const p = confetti[i];
+      p.vy += p.g; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life++;
+      // gentle sway
+      p.x += Math.sin(p.life*0.1)*0.3;
+      if (p.y > H+5) { p.y = -4; p.x = Math.random()*W; p.vy = 0.5+Math.random()*0.9; p.vx=(Math.random()-0.5)*0.6; }
+      const c = p.c;
+      if (Math.abs(Math.sin(p.r)) > 0.5) { rect(p.x, p.y, 2, 1, c); }
+      else { rect(p.x, p.y, 1, 2, c); }
+    }
+    if (confetti.length > 400) confetti.splice(0, confetti.length-400);
+  }
+
+  /* ---------- title text block ---------- */
+  function drawTitles(t) {
+    // "HAPPY 15TH BIRTHDAY"
+    const pulse = 1 + Math.sin(t*3)*0.0;
+    // shadow + main for top line
+    drawTextCentered("HAPPY 15TH BIRTHDAY", 160, 17, 2,
+      (ch,xx)=> "#08313c", {spacing:1});
+    drawTextCentered("HAPPY 15TH BIRTHDAY", 160, 16, 2,
+      (ch,xx)=> { return "#bdf3ff"; }, {spacing:1});
+
+    // big "ELLA" — each letter a boy colour, with bobbing + drop shadow
+    const word = "ELLA";
+    const sc = 6, sp = 2;
+    const w = textWidth(word, sc, sp);
+    let startX = Math.round(160 - w/2);
+    const colsE = ["#3de0c0","#5ad1ff","#9bff5a","#b98cff"];
+    let cx = startX;
+    for (let i=0;i<word.length;i++){
+      const ch = word[i];
+      const g = FONT[ch];
+      const bob = Math.round(Math.sin(t*3 + i*0.6)*2);
+      const baseY = 36 + bob;
+      // shadow
+      for (let r=0;r<7;r++) for (let c=0;c<5;c++)
+        if (g[r][c]==="1") rect(cx + c*sc + 2, baseY + r*sc + 2, sc, sc, "#05222b");
+      // body
+      for (let r=0;r<7;r++) for (let c=0;c<5;c++)
+        if (g[r][c]==="1") {
+          rect(cx + c*sc, baseY + r*sc, sc, sc, colsE[i]);
+          // top highlight
+          if (r===0 || (r>0 && g[r-1][c]==="0"))
+            rect(cx + c*sc, baseY + r*sc, sc, 2, "#eafffb");
+        }
+      cx += 5*sc + sp*sc;
+    }
+  }
+
+  /* ---------- main loop ---------- */
+  let start = performance.now();
+  function frame(now) {
+    const t = (now - start)/1000;
+    ctx.clearRect(0,0,W,H);
+    drawSky(t);
+    drawMountains();
+    drawTrees();
+    drawTrail();
+
+    // biker airborne over the gap, bobbing slightly with a little rotation feel
+    const bx = 150 + Math.sin(t*0.9)*6;
+    const by = 150 - 26 + Math.sin(t*1.8)*3;
+    // dust trail behind takeoff
+    if (Math.random()>0.4) dust.push({x:96+Math.random()*6, y:166+Math.random()*4, vx:-0.3-Math.random()*0.4, vy:-0.2-Math.random()*0.3, life:0});
+    for (let i=dust.length-1;i>=0;i--){ const d=dust[i]; d.x+=d.vx; d.y+=d.vy; d.life++; if(d.life>22){dust.splice(i,1);continue;} const a = d.life<11?"#9a8a72":"#6f6354"; px(d.x,d.y,a); if(d.life<8) px(d.x+1,d.y,a); }
+    drawBiker(bx, by);
+
+    // foreground party crew
+    drawCake(t, 18, 150);
+    // hamster mascot with party hat + balloon, bottom-right
+    const hamX = 250, hamY = 142 + Math.round(Math.sin(t*2)*1);
+    // balloon string + balloon
+    line(hamX+20, hamY+4, hamX+24, 96, "#cfe8ff");
+    circleFill(hamX+24, 90, 6, "#ff5a8a"); circleFill(hamX+22, 88, 2, "#ffd0dd");
+    sprite(hamster.rows, hamster.pal, hamX, hamY, 2);
+    sprite(hat.rows, hat.pal, hamX+10, hamY-14, 2);
+
+    drawNotes(t);
+    drawBunting(t);
+    updateConfetti();
+    drawTitles(t);
+
+    // little subtitle
+    drawTextCentered("RIDE FAST * STAY 15 FOREVER", 160, 188, 1, "#7fd6c6");
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* ---------- buttons ---------- */
+  document.getElementById("confettiBtn").addEventListener("click", () => addConfetti(80, true));
+
+  // simple WebAudio "Happy Birthday" melody (minor-ish, Billie vibe)
+  let audioCtx = null, playing = false;
+  document.getElementById("musicBtn").addEventListener("click", () => {
+    if (playing) return;
+    playing = true;
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const ac = audioCtx;
+    const N = f => f; // freq
+    // Happy Birthday in a moody key
+    const mel = [
+      [196,0.4],[196,0.2],[220,0.6],[196,0.6],[262,0.6],[247,1.0],
+      [196,0.4],[196,0.2],[220,0.6],[196,0.6],[294,0.6],[262,1.0],
+      [196,0.4],[196,0.2],[392,0.6],[330,0.6],[262,0.6],[247,0.6],[220,1.0],
+      [349,0.4],[349,0.2],[330,0.6],[262,0.6],[294,0.6],[262,1.2]
+    ];
+    let tm = ac.currentTime + 0.05;
+    mel.forEach(([f,d]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = "triangle"; o.frequency.value = f;
+      const o2 = ac.createOscillator(); o2.type="sine"; o2.frequency.value=f/2;
+      const g2 = ac.createGain();
+      g.gain.setValueAtTime(0.0001, tm);
+      g.gain.exponentialRampToValueAtTime(0.18, tm+0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, tm+d*0.95);
+      g2.gain.setValueAtTime(0.0001, tm);
+      g2.gain.exponentialRampToValueAtTime(0.08, tm+0.03);
+      g2.gain.exponentialRampToValueAtTime(0.0001, tm+d*0.95);
+      o.connect(g).connect(ac.destination);
+      o2.connect(g2).connect(ac.destination);
+      o.start(tm); o.stop(tm+d);
+      o2.start(tm); o2.stop(tm+d);
+      tm += d;
+    });
+    // burst confetti in time
+    addConfetti(120, true);
+    setTimeout(()=>{ playing = false; }, (tm - ac.currentTime)*1000 + 200);
+  });
+})();
+</script>
+</body>
+</html>
