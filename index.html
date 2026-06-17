@@ -47,7 +47,15 @@
   .won{ font-size:clamp(13px,3.6vmin,24px); color:#9bff5a; text-shadow:1px 1px 0 #04161d; }
   .stats{ font-size:clamp(13px,3.6vmin,24px); color:#eaf6ff; line-height:1.7; text-shadow:1px 1px 0 #04161d; }
   .stats b{ color:#ffd35a; font-weight:800; }
+  .msg{ font-size:clamp(15px,4.2vmin,28px); color:#ffd1dc; font-style:italic; line-height:1.4;
+    max-width:92%; text-shadow:2px 2px 0 #04161d; }
+  .retry{ pointer-events:auto; margin-top:0.5em; font-family:inherit; font-weight:800; letter-spacing:1px;
+    font-size:clamp(16px,4.4vmin,28px); color:#04161d; background:linear-gradient(180deg,#9bff5a,#5fd02f);
+    border:none; border-radius:14px; padding:0.55em 1.2em; cursor:pointer; display:none;
+    box-shadow:0 5px 0 #2f7a1c, 0 9px 20px rgba(0,0,0,.45); animation:pop .25s ease-out; }
+  .retry:active{ transform:translateY(3px); box-shadow:0 2px 0 #2f7a1c, 0 4px 10px rgba(0,0,0,.4); }
   @keyframes blink{ 50%{ opacity:.2 } }
+  @keyframes pop{ from{ transform:scale(.7); opacity:0 } to{ transform:scale(1); opacity:1 } }
 </style>
 </head>
 <body>
@@ -68,9 +76,9 @@
       <div class="bday1">HAPPY 15TH</div>
       <div class="bday2">BIRTHDAY ELLA!</div>
     </div>
-    <div class="won">🏆 LEVEL COMPLETE — YOU WON! 🐹</div>
-    <div class="stats">Your time: <b id="fTime">0:00.00</b><br>Best: <b id="fBest">0:00.00</b></div>
-    <div class="cta">TAP TO RACE AGAIN</div>
+    <div class="msg">Looking forward to going karting with you tonight x</div>
+    <div class="stats">🏆 You won! &nbsp; Lap time <b id="fTime">0:00.00</b> &nbsp;·&nbsp; Best <b id="fBest">0:00.00</b></div>
+    <button id="retryBtn" class="retry" type="button">🔄 Race again</button>
   </div>
 <script>
 (() => {
@@ -79,12 +87,15 @@
   const muteBtn=document.getElementById("muteBtn"), rotateEl=document.getElementById("rotate");
   const titleScreen=document.getElementById("titleScreen"), finishScreen=document.getElementById("finishScreen");
   const fTimeEl=document.getElementById("fTime"), fBestEl=document.getElementById("fBest");
-  let shownScreen=null;
+  const retryBtn=document.getElementById("retryBtn");
+  const RETRY_DELAY=4; // seconds before the "Race again" button can be used
+  let shownScreen=null, retryShown=false;
   function showScreen(s){
     if(shownScreen===s)return;shownScreen=s;
     titleScreen.style.display = s==="title"?"flex":"none";
     finishScreen.style.display = s==="finish"?"flex":"none";
     if(s==="finish"){fTimeEl.textContent=fmtTime(game.raceTime);fBestEl.textContent=fmtTime(best);}
+    if(s!=="finish"){retryBtn.style.display="none";retryShown=false;}
   }
 
   /* ---------- sizing ---------- */
@@ -335,6 +346,7 @@
     if(game.state==="finish"){
       game.finishT+=dt;
       if(game.finishT<7&&Math.random()<0.3)addFirework(20+Math.random()*(W-40),20+Math.random()*70);
+      if(!retryShown&&game.finishT>=RETRY_DELAY){retryBtn.style.display="inline-block";retryShown=true;}
       ctx.setTransform(1,0,0,1,0,0);
       dimScreen(0.5);
       drawFW();
@@ -345,13 +357,18 @@
   }
 
   /* ---------- input ---------- */
-  function press(){ac();if(game.state==="title"||game.state==="finish"){startRace();}}
+  // The finish screen does NOT restart on a stray tap. Only the "Race again"
+  // button (which appears after RETRY_DELAY seconds) restarts the race.
+  function press(){ac();if(game.state==="title"){startRace();}}
+  function doRetry(){if(game.state==="finish"&&game.finishT>=RETRY_DELAY){ac();startRace();}}
+  retryBtn.addEventListener("pointerdown",e=>{e.stopPropagation();e.preventDefault();doRetry();});
+  retryBtn.addEventListener("click",e=>{e.stopPropagation();e.preventDefault();doRetry();});
   canvas.addEventListener("pointerdown",e=>{e.preventDefault();ptrs.set(e.pointerId,e.clientX*(W/canvas.clientWidth));press();},{passive:false});
   canvas.addEventListener("pointermove",e=>{e.preventDefault();if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,e.clientX*(W/canvas.clientWidth));},{passive:false});
   const clr=e=>{ptrs.delete(e.pointerId);};
   canvas.addEventListener("pointerup",e=>{e.preventDefault();clr(e);},{passive:false});
   canvas.addEventListener("pointercancel",clr);canvas.addEventListener("pointerout",clr);canvas.addEventListener("pointerleave",clr);
-  window.addEventListener("keydown",e=>{if(e.code==="ArrowLeft"||e.code==="KeyA")keyL=true;if(e.code==="ArrowRight"||e.code==="KeyD")keyR=true;if(e.code==="Space"||e.code==="Enter"){e.preventDefault();press();}});
+  window.addEventListener("keydown",e=>{if(e.code==="ArrowLeft"||e.code==="KeyA")keyL=true;if(e.code==="ArrowRight"||e.code==="KeyD")keyR=true;if(e.code==="Space"||e.code==="Enter"){e.preventDefault();press();doRetry();}});
   window.addEventListener("keyup",e=>{if(e.code==="ArrowLeft"||e.code==="KeyA")keyL=false;if(e.code==="ArrowRight"||e.code==="KeyD")keyR=false;});
   muteBtn.addEventListener("pointerdown",e=>{e.stopPropagation();e.preventDefault();muted=!muted;muteBtn.textContent=muted?"🔇":"🔊";try{localStorage.setItem("ella_kart_mute",muted?"1":"0");}catch(e){}});
   muteBtn.textContent=muted?"🔇":"🔊";
