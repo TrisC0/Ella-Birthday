@@ -49,8 +49,12 @@
   .won{ font-size:clamp(13px,3.6vmin,24px); color:#9bff5a; text-shadow:1px 1px 0 #04161d; }
   .stats{ font-size:clamp(13px,3.6vmin,24px); color:#eaf6ff; line-height:1.7; text-shadow:1px 1px 0 #04161d; }
   .stats b{ color:#ffd35a; font-weight:800; }
-  .msg{ font-size:clamp(15px,4.2vmin,28px); color:#ffd1dc; font-style:italic; line-height:1.4;
-    max-width:92%; text-shadow:2px 2px 0 #04161d; }
+  .msg{ font-size:clamp(17px,5vmin,34px); color:#ffe1ea; font-style:italic; font-weight:700; line-height:1.5;
+    max-width:94%; text-shadow:2px 2px 0 #04161d;
+    background:rgba(12,26,52,0.6); border:2px solid rgba(255,150,180,0.55); border-radius:14px;
+    padding:0.5em 0.9em; box-shadow:0 6px 22px rgba(0,0,0,.45); }
+  .msg .sign{ display:inline-block; margin-top:0.25em; font-style:normal; font-weight:800; color:#ffd35a; }
+  .msg .kiss{ color:#ff6fa0; }
   .retry{ pointer-events:auto; margin-top:0.5em; font-family:inherit; font-weight:800; letter-spacing:1px;
     font-size:clamp(16px,4.4vmin,28px); color:#04161d; background:linear-gradient(180deg,#9bff5a,#5fd02f);
     border:none; border-radius:14px; padding:0.55em 1.2em; cursor:pointer; display:none;
@@ -78,7 +82,7 @@
       <div class="bday1">HAPPY 15TH</div>
       <div class="bday2">BIRTHDAY ELLA!</div>
     </div>
-    <div class="msg">Looking forward to going karting with you tonight x</div>
+    <div class="msg">Looking forward to karting with you later! 💛<br><span class="sign">All my love, Dad <span class="kiss">x</span></span></div>
     <div class="stats">🏆 You won! &nbsp; Lap time <b id="fTime">0:00.00</b> &nbsp;·&nbsp; Best <b id="fBest">0:00.00</b></div>
     <button id="retryBtn" class="retry" type="button">🔄 Race again</button>
   </div>
