@@ -19,7 +19,9 @@
     touch-action:none; overscroll-behavior:none;
     -webkit-user-select:none; user-select:none;
   }
-  #game { display:block; image-rendering:pixelated; image-rendering:crisp-edges; background:#0b1b30; touch-action:none; }
+  #game { display:block; image-rendering:pixelated; image-rendering:crisp-edges; background:#0b1b30; touch-action:none;
+    transform:translateZ(0); will-change:transform; backface-visibility:hidden; }
+  .screen{ transform:translateZ(0); }
   #ui { position:fixed; z-index:5; display:flex; gap:6px; top:calc(env(safe-area-inset-top,0px) + 6px); right:calc(env(safe-area-inset-right,0px) + 6px); }
   #ui button { width:36px; height:36px; padding:0; font-size:18px; line-height:36px; color:#cfe8ff; background:rgba(8,20,30,.55); border:1px solid rgba(61,224,192,.5); border-radius:9px; cursor:pointer; }
   #ui button:active { transform:translateY(1px); }
@@ -99,13 +101,17 @@
   }
 
   /* ---------- sizing ---------- */
-  let W=420,H=210,frame=null;
+  let W=420,H=210,frame=null,gnd=null,gctx=null;
+  function ensureGnd(){
+    if(!gnd)gnd=document.createElement("canvas");
+    if(gnd.width!==W||gnd.height!==H){gnd.width=W;gnd.height=H;gctx=gnd.getContext("2d");gctx.imageSmoothingEnabled=false;frame=gctx.createImageData(W,H);}
+  }
   function resize(){
     const vw=window.innerWidth,vh=window.innerHeight; H=210;
     const portrait=vh>vw;
     if(portrait){W=360;rotateEl.style.display="block";} else {W=Math.max(340,Math.min(600,Math.round(H*(vw/vh))));rotateEl.style.display="none";}
     canvas.width=W;canvas.height=H;ctx.imageSmoothingEnabled=false;
-    frame=ctx.createImageData(W,H);
+    ensureGnd();
     const aspect=W/H;let cw=vw,ch=vh;
     if(cw/ch>aspect)cw=Math.round(ch*aspect);else ch=Math.round(cw/aspect);
     canvas.style.width=cw+"px";canvas.style.height=ch+"px";
@@ -193,7 +199,7 @@
   const horizonFrac=0.42, FOCAL=170, CAMZ=24;
   const skyR=42,skyG=125,skyB=132; // horizon haze target
   function renderGround(camX,camY,camH){
-    if(!frame||frame.width!==W||frame.height!==H)frame=ctx.createImageData(W,H);
+    ensureGnd();
     const data=frame.data, horizon=(H*horizonFrac)|0;
     const cosH=Math.cos(camH), sinH=Math.sin(camH);
     // sky
@@ -221,7 +227,10 @@
         wx+=sx;wy+=sy;o+=4;
       }
     }
-    ctx.putImageData(frame,0,0);
+    // paint into the offscreen buffer, then composite via drawImage (GPU,
+    // flicker-free) instead of putImageData straight onto the visible canvas
+    gctx.putImageData(frame,0,0);
+    ctx.drawImage(gnd,0,0);
   }
 
   /* ---------- audio ---------- */
@@ -290,13 +299,18 @@
   function fmtTime(t){const m=(t/60)|0,s=t-m*60;return m+":"+(s<10?"0":"")+s.toFixed(2);}
   function camFromKart(){const back=30;return [kart.x-Math.cos(kart.h)*back,kart.y-Math.sin(kart.h)*back,kart.h];}
   function drawKart(){
-    const sc=2, sw=S_kart.rows[0].length*sc;
-    const bob=Math.sin(game.t*14)*(kart.spd>20?1:0);
+    const sc=2, sw=S_kart.rows[0].length*sc, sh=S_kart.rows.length*sc;
+    const bob=(game.state==="race"&&kart.spd>20)?Math.sin(game.t*14):0;
     const lean=steerInput();
-    const baseX=Math.round(W/2-sw/2), baseY=Math.round(H-S_kart.rows.length*sc-6+bob);
-    ctx.save();ctx.translate(Math.round(W/2),Math.round(baseY+S_kart.rows.length*sc));ctx.rotate(lean*0.06);
-    sprite(S_kart.rows,S_kart.pal,Math.round(-sw/2),Math.round(-S_kart.rows.length*sc),sc);
-    ctx.restore();
+    const baseX=Math.round(W/2-sw/2), baseY=Math.round(H-sh-6+bob);
+    if(lean!==0){
+      ctx.save();ctx.translate(Math.round(W/2),baseY+sh);ctx.rotate(lean*0.06);
+      sprite(S_kart.rows,S_kart.pal,Math.round(-sw/2),-sh,sc);
+      ctx.restore();
+    }else{
+      // idle / no steering: draw at fixed integer pixels (perfectly stable, no flicker)
+      sprite(S_kart.rows,S_kart.pal,baseX,baseY,sc);
+    }
     // little party hat on the kart driver
     sprite(S_hat.rows,S_hat.pal,baseX+sw/2-9+lean*2,baseY-9,1);
   }
@@ -320,12 +334,9 @@
     if(window.__demo&&!window.__demoInit){window.__demoInit=true;startRace();game.state="race";game.cdt=0;for(let i=0;i<(window.__demoSteps||220);i++)update(1/60);}
     update(dt);
 
-    // hard clear every frame (prevents stale-frame artifacts on some mobile GPUs)
     ctx.setTransform(1,0,0,1,0,0);
-    ctx.fillStyle="#0b1b30";ctx.fillRect(0,0,W,H);
-
     const [cx,cy,ch]=camFromKart();
-    renderGround(cx,cy,ch);
+    renderGround(cx,cy,ch); // fully repaints the canvas via drawImage (opaque)
     // screen shake
     let ox=0,oy=0;if(game.shake>0){ox=(Math.random()-.5)*4*game.shake;oy=(Math.random()-.5)*4*game.shake;}
     ctx.setTransform(1,0,0,1,Math.round(ox),Math.round(oy));
